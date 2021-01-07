@@ -1,0 +1,16 @@
+这里先说明一下网上下载的demo的情况
+【processData.py】
+    输入文件：unlabeledTrainData.tsv     labeledTrainData.tsv
+    输出文件：wordEmbdiing.txt           labeledCharTrain.csv
+【getWorc2Vic.py】
+    输入文件：wordEmbdiing.txt
+    输出文件：word2Vec.bin
+【Bi-LSTMAttention.py】
+    输入文件：word2Vec.bin       labeledCharTrain.csv    english
+    输出文件：word2idx.json  label2idx.json
+            /model/Bi-LSTM-atten/model/...
+            /model/Bi-LSTM-atten/model/my-model/checkPoint...
+
+更新方案
+    1、从labeledCharTrain.csv提取wordEmbdiing.txt文件，这样就不用tsv文件了，并且省略了processData.py
+    2、labeledCharTrain.csv和labeledTrain.csv的差别在于文本部分的前后双引号，合并成一个即可

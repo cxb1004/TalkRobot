@@ -35,6 +35,15 @@ file_labeled_train_csv = os.path.join(basePath, 'data\preProcess\labeledTrain.cs
 file_corpus_txt = os.path.join(basePath, 'data\corpus.txt')
 file_word2vec_bin = os.path.join(basePath, 'data\word2Vec.bin')
 
+if os.path.isfile(file_corpus_txt):
+    os.remove(file_corpus_txt)
+    log.info('corpus.txt文件已经存在，自动删除')
+if os.path.isfile(file_word2vec_bin):
+    os.remove(file_word2vec_bin)
+    log.info('ord2Vec.bin文件已经存在，自动删除')
+
+
+log.info('根据labeledTrain.csv文件，生成词库文件corpus.txt...')
 with open(file_corpus_txt, 'w', encoding='utf-8') as corpusFile:
     with open(file_labeled_train_csv, 'r', encoding='utf-8') as csvFile:
         allLines = csv.reader(csvFile)
@@ -44,7 +53,9 @@ with open(file_corpus_txt, 'w', encoding='utf-8') as corpusFile:
             if not lineNum == 0:
                 corpusFile.write(line[0])
             else:
-                lineNum=1
+                lineNum = 1
+
+log.info('corpus.txt生成完毕...')
 
 log.info('根据生成的corpus.txt文件，生成词向量文件...')
 sentences = word2vec.LineSentence(file_corpus_txt)
@@ -61,12 +72,13 @@ vec_window = 6
 vec_min_count = 2
 vec_sg = 1
 vec_iter = 5
+
+log.info('生成中...')
 model = gensim.models.Word2Vec(sentences,
                                size=vec_size,
                                window=vec_window,
                                min_count=vec_min_count,
                                sg=vec_sg,
                                iter=vec_iter)
-log.info('生成中...')
 model.wv.save_word2vec_format(file_word2vec_bin, binary=True)
 log.info('生成完毕')

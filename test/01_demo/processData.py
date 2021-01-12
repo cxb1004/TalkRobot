@@ -30,10 +30,10 @@ from common.log import Log
 log = Log()
 
 # 输入文件
-file_labeled_train_csv = os.path.join(basePath, 'data\preProcess\labeledTrain.csv')
+file_labeled_train_csv = os.path.join(basePath, 'data/preProcess/labeledTrain.csv')
 # 输出文件
-file_corpus_txt = os.path.join(basePath, 'data\corpus.txt')
-file_word2vec_bin = os.path.join(basePath, 'data\word2Vec.bin')
+file_corpus_txt = os.path.join(basePath, 'data/corpus.txt')
+file_word2vec_bin = os.path.join(basePath, 'data/word2Vec.bin')
 
 if os.path.isfile(file_corpus_txt):
     os.remove(file_corpus_txt)
@@ -67,13 +67,15 @@ sentences = word2vec.LineSentence(file_corpus_txt)
 # - hs：即我们的word2vec两个解法的选择了。如果是0， 则是Negative Sampling；是1的话并且负采样个数negative大于0， 则是Hierarchical Softmax。默认是0即Negative Sampling
 # - min_count：需要计算词向量的最小词频。这个值可以去掉一些很生僻的低频词，默认是5。如果是小语料，可以调低这个值
 # - iter：随机梯度下降法中迭代的最大次数，默认是5。对于大语料，可以增大这个值。
-vec_size = 100
+vec_size = 200
 vec_window = 6
 vec_min_count = 2
 vec_sg = 1
-vec_iter = 5
+vec_iter = 8
 
 log.info('生成中...')
+
+# model = gensim.models.Word2Vec(sentences, size=200, sg=1, iter=8)
 model = gensim.models.Word2Vec(sentences,
                                size=vec_size,
                                window=vec_window,

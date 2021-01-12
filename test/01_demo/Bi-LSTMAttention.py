@@ -689,8 +689,9 @@ with tf.Graph().as_default():
                 tf.summary.histogram("{}/grad/hist".format(v.name), g)
                 tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
 
-        outDir = os.path.abspath(os.path.join(os.path.curdir, "summarys"))
-        print("Writing to {}\n".format(outDir))
+        # outDir = os.path.abspath(os.path.join(os.path.curdir, "summarys"))
+        outDir = os.path.join(basePath, 'data/model/summarys')
+        log.debug("Writing to {}\n".format(outDir))
 
         lossSummary = tf.summary.scalar("loss", lstm.loss)
         summaryOp = tf.summary.merge_all()
@@ -705,7 +706,8 @@ with tf.Graph().as_default():
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
 
         # 保存模型的一种方式，保存为pb文件
-        savedModelPath = "../model/bilstm-atten/savedModel"
+        # savedModelPath = "../model/bilstm-atten/savedModel"
+        savedModelPath = os.path.join(basePath, "/data/model/savedModel")
         if os.path.exists(savedModelPath):
             os.rmdir(savedModelPath)
         builder = tf.saved_model.builder.SavedModelBuilder(savedModelPath)
@@ -766,15 +768,15 @@ with tf.Graph().as_default():
 
         for i in range(config.training.epoches):
             # 训练模型
-            print("start training model")
+            log.debug("start training model")
             for batchTrain in nextBatch(trainReviews, trainLabels, config.batchSize):
                 loss, acc, prec, recall, f_beta = trainStep(batchTrain[0], batchTrain[1])
 
                 currentStep = tf.train.global_step(sess, globalStep)
-                print("train: step: {}, loss: {}, acc: {}, recall: {}, precision: {}, f_beta: {}".format(
+                log.debug("train: step: {}, loss: {}, acc: {}, recall: {}, precision: {}, f_beta: {}".format(
                     currentStep, loss, acc, recall, prec, f_beta))
                 if currentStep % config.training.evaluateEvery == 0:
-                    print("\nEvaluation:")
+                    log.debug("\nEvaluation:")
 
                     losses = []
                     accs = []
@@ -791,7 +793,7 @@ with tf.Graph().as_default():
                         recalls.append(recall)
 
                     time_str = datetime.datetime.now().isoformat()
-                    print("{}, step: {}, loss: {}, acc: {},precision: {}, recall: {}, f_beta: {}".format(time_str,
+                    log.debug("{}, step: {}, loss: {}, acc: {},precision: {}, recall: {}, f_beta: {}".format(time_str,
                                                                                                          currentStep,
                                                                                                          mean(losses),
                                                                                                          mean(accs),
@@ -802,8 +804,8 @@ with tf.Graph().as_default():
 
                 if currentStep % config.training.checkpointEvery == 0:
                     # 保存模型的另一种方法，保存checkpoint文件
-                    path = saver.save(sess, "../model/Bi-LSTM-atten/model/my-model", global_step=currentStep)
-                    print("Saved model checkpoint to {}\n".format(path))
+                    path = saver.save(sess, os.path.join(basePath, "/data/model/my-model"), global_step=currentStep)
+                    log.debug("Saved model checkpoint to {}\n".format(path))
 
         inputs = {"inputX": tf.saved_model.utils.build_tensor_info(lstm.inputX),
                   "keepProb": tf.saved_model.utils.build_tensor_info(lstm.dropoutKeepProb)}
@@ -819,4 +821,4 @@ with tf.Graph().as_default():
 
         builder.save()
 
-log.info('ok...')
+log.info('训练完成')

@@ -804,7 +804,7 @@ with tf.Graph().as_default():
 
                 if currentStep % config.training.checkpointEvery == 0:
                     # 保存模型的另一种方法，保存checkpoint文件
-                    path = saver.save(sess, os.path.join(basePath, "data/model/my-model"), global_step=currentStep)
+                    path = saver.save(sess, os.path.join(basePath, "data/model/"), global_step=currentStep)
                     log.debug("Saved model checkpoint to {}\n".format(path))
 
         inputs = {"inputX": tf.saved_model.utils.build_tensor_info(lstm.inputX),

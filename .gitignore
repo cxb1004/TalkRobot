@@ -5,5 +5,6 @@
 /test/01_demo/data/model
 /test/01_demo/data/model/model.rar
 /test/02_chinese_corpus/data/corpus_6_4000/
+/test/02_chinese_corpus/data/labeledTrainData.csv
 /test/03_short_sentence/data/msg.txt
 /tools/

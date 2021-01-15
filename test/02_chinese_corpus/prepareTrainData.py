@@ -65,7 +65,7 @@ with open(labeled_train_data_csv, 'w', encoding='utf-8', newline='') as csv_file
             for content_line in content_list:
                 content = content + content_line
 
-            content = content.replace("\n"," ").strip(" ")
+            content = content.replace("\n", "。").strip(" ")
 
             line_data = [content, label_id, label]
             labeled_train_data_writer.writerow(line_data)

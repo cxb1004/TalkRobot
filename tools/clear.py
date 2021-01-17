@@ -11,14 +11,6 @@
 import sys
 import warnings
 import os
-import time
-import csv
-import string
-from zhon.hanzi import punctuation
-from bs4 import BeautifulSoup
-import jieba
-from gensim.models import word2vec
-import gensim
 
 sys.path.append("..")
 # from common1.log import ProjectLog
@@ -69,7 +61,7 @@ def transform(newFile, oldFile):
 for root, dirs, files in os.walk(CUR_PATH):
     path = root
     for file in files:
-        if not file == CUR_FILE:
+        if not (file == CUR_FILE or file == 'cmd'):
             oldFile = path + os.sep + file
             newFile = path + os.sep + 'backup_' + file
             os.rename(oldFile, newFile)

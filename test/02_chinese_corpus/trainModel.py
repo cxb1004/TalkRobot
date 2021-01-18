@@ -509,10 +509,10 @@ class Dataset(object):
 generateWord2VectorFile(csv_labeled_data, bin_word2Vec)
 
 # # Todo 以下是新代码
-# config = Config()
-#
-# data = Dataset(config)
-# data.dataGen()
+config = Config()
+
+data = Dataset(config)
+data.dataGen()
 #
 # log.debug("train data shape: {}".format(data.trainReviews.shape))
 # log.debug("train label shape: {}".format(data.trainLabels.shape))

@@ -37,10 +37,13 @@ csv_labeled_data = os.path.join(basePath, 'data/labeledData.csv')
 
 bin_word2Vec = os.path.join(basePath, 'data/word2Vec.bin')
 
+file_labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv')
+
 # 需要过滤的标点符号，出于语义考虑，保留问号
 fileter_punctuation = (string.punctuation + punctuation) \
     .replace('?', '') \
     .replace('？', '')
+
 
 def getCutWordsWithClean(text):
     """
@@ -125,7 +128,7 @@ def segment(text):
     return new_text
 
 
-def generateWord2VectorFile(_sourceFile, _word2VecFile):
+def generateWord2VectorFile(_sourceFile, _word2VecFile, _file_labeled_train_data_csv):
     """
     读入语料数据，清洗，并生成word2Vec.bin
     1、读入语料数据
@@ -143,7 +146,6 @@ def generateWord2VectorFile(_sourceFile, _word2VecFile):
     # 根据word2Vec.bin的位置，生成corpus.txt的位置
     path_word2Vec = os.path.dirname(os.path.abspath(_word2VecFile))
     file_corpus_txt = os.path.join(path_word2Vec, 'corpus.txt')
-    file_labeled_train_data_csv = os.path.join(path_word2Vec, 'labeledTrainData.csv')
 
     # corpus.txt文件如果已经存在，删除
     if os.path.isfile(file_corpus_txt):
@@ -155,7 +157,7 @@ def generateWord2VectorFile(_sourceFile, _word2VecFile):
     log.info("开始生成语料库文件：{}".format(file_corpus_txt))
     with open(_sourceFile, 'r', encoding='utf-8') as csvFile:
         with open(file_corpus_txt, 'w', encoding='utf-8', newline='') as corpusFile:
-            with open(file_labeled_train_data_csv, 'w', encoding='utf-8', newline='') as trainDataCSV:
+            with open(_file_labeled_train_data_csv, 'w', encoding='utf-8', newline='') as trainDataCSV:
                 # 读取labeledData.csv文件内容
                 csvData = csv.reader(csvFile)
                 csvTrainData = csv.writer(trainDataCSV)
@@ -225,7 +227,7 @@ class Config(object):
     # 【待重构】
     # 原始数据源
     # dataSource = os.path.join(basePath, "data/labeledTrain.csv")
-    dataSource = csv_labeled_data
+    dataSource = file_labeled_train_data_csv
 
     # 【待重构】
     # 暂时先不考虑停用词
@@ -506,11 +508,10 @@ class Dataset(object):
 """
 
 # 生成词向量文件
-generateWord2VectorFile(csv_labeled_data, bin_word2Vec)
+# generateWord2VectorFile(csv_labeled_data, bin_word2Vec, file_labeled_train_data_csv)
 
-# # Todo 以下是新代码
+# 以上已经生成了labeledData.csv、labeledTrainData.csv、corpus.txt、word2Vec.bin
 config = Config()
-
 data = Dataset(config)
 data.dataGen()
 #

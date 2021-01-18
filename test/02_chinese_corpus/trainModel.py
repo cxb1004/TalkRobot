@@ -71,6 +71,11 @@ def getCutWordsWithClean(text):
     new_text = new_text.replace('?', '？')
     new_text = new_text.replace('!', '！')
 
+    # 去除所有中英文标点符号：对于短文本来说，标点符号对于语义来说没有太大影响，保留了问号
+    global fileter_punctuation
+    # for i in fileter_punctuation:
+    #     new_text = text.replace(i, '')
+    new_text = re.sub("[{}]+".format(punctuation), "", new_text)
     return new_text
 
 
@@ -114,10 +119,6 @@ def segment(text):
     :param text: 文本
     :return: 去除html标签
     """
-    # 去除所有中英文标点符号：对于短文本来说，标点符号对于语义来说没有太大影响，保留了问号
-    global fileter_punctuation
-    for i in fileter_punctuation:
-        new_text = text.replace(i, '')
     # 对结果进行分词
     new_text = text
     word_list = jieba.cut(new_text)
@@ -314,9 +315,9 @@ class Dataset(object):
         # 而中文的分词需要特殊处理，所以这里要前置处理，在生成csv文件的时候，就把分词结果写入到content里面
         # 因此在生成corpus.txt文件的时候，同时生成labeledTrainData.csv文件，里面content是经过分词处理的
         # 直接返回review即可
-        # reviews = [line.strip().split() for line in review]
+        reviews = [line.strip().split() for line in review]
 
-        return review, labels
+        return reviews, labels
 
     def _labelToIndex(self, labels, label2idx):
         """
@@ -508,12 +509,12 @@ class Dataset(object):
 """
 
 # 生成词向量文件
-# generateWord2VectorFile(csv_labeled_data, bin_word2Vec, file_labeled_train_data_csv)
+generateWord2VectorFile(csv_labeled_data, bin_word2Vec, file_labeled_train_data_csv)
 
 # 以上已经生成了labeledData.csv、labeledTrainData.csv、corpus.txt、word2Vec.bin
-config = Config()
-data = Dataset(config)
-data.dataGen()
+# config = Config()
+# data = Dataset(config)
+# data.dataGen()
 #
 # log.debug("train data shape: {}".format(data.trainReviews.shape))
 # log.debug("train label shape: {}".format(data.trainLabels.shape))

@@ -19,7 +19,7 @@ log = Log()
 
 source_data_folder = os.path.join(basePath, 'data/corpus_6_4000')
 
-labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv')
+labeled_train_data_csv = os.path.join(basePath, 'data/labeledData.csv')
 
 if os.path.isfile(labeled_train_data_csv):
     os.remove(labeled_train_data_csv)

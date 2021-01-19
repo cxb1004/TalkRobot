@@ -19,7 +19,7 @@ import tensorflow.compat.v1 as tf
 import json
 
 
-x = "would anyone really watch this rubbish if it didnt contain little children running around nude from a cinematic point of view it is probably one of the worst films i have encountered absolutely dire some "
+x = "although i generally do not like remakes believing that remakes are waste of time; this film is an exception i didnt"
 sequenceLength = 200
 # 注：下面两个词典要保证和当前加载的模型对应的词典是一致的
 file_word2idx_json = os.path.join(basePath, 'data/word2idx.json')

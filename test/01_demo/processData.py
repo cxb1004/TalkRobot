@@ -40,7 +40,7 @@ if os.path.isfile(file_corpus_txt):
     log.info('corpus.txt文件已经存在，自动删除')
 if os.path.isfile(file_word2vec_bin):
     os.remove(file_word2vec_bin)
-    log.info('ord2Vec.bin文件已经存在，自动删除')
+    log.info('word2Vec.bin文件已经存在，自动删除')
 
 
 log.info('根据labeledTrain.csv文件，生成词库文件corpus.txt...')
@@ -51,10 +51,10 @@ with open(file_corpus_txt, 'w', encoding='utf-8') as corpusFile:
         lineNum = 0
         for line in allLines:
             if not lineNum == 0:
-                corpusFile.write(line[0])
+                corpusFile.write(line[0]+"\n")
             else:
                 lineNum = 1
-
+#这里生成的corpus文件，其中content的内容
 log.info('corpus.txt生成完毕...')
 
 log.info('根据生成的corpus.txt文件，生成词向量文件...')

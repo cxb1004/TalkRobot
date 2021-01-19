@@ -74,10 +74,10 @@ def getCutWordsWithClean(text):
     new_text = new_text.replace('!', '！')
 
     # 去除所有中英文标点符号：对于短文本来说，标点符号对于语义来说没有太大影响，保留了问号
-    global fileter_punctuation
-    # for i in fileter_punctuation:
-    #     new_text = text.replace(i, '')
-    new_text = re.sub("[{}]+".format(punctuation), "", new_text)
+    # global fileter_punctuation
+    # # for i in fileter_punctuation:
+    # #     new_text = text.replace(i, '')
+    # new_text = re.sub("[{}]+".format(punctuation), "", new_text)
     return new_text
 
 
@@ -836,7 +836,7 @@ class BiLSTMAttention(object):
 """
 
 # 生成词向量文件
-# generateWord2VectorFile(csv_labeled_data, bin_word2Vec, file_labeled_train_data_csv)
+generateWord2VectorFile(csv_labeled_data, bin_word2Vec, file_labeled_train_data_csv)
 
 # 以上已经生成了labeledData.csv、labeledTrainData.csv、corpus.txt、word2Vec.bin
 config = Config()

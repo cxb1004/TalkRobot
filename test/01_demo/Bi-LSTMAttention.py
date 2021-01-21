@@ -70,7 +70,7 @@ class Config(object):
     numClasses = 11
 
     # 训练集的比例，即80%用于训练，20%用于测试
-    rate = 0.8
+    rate = 0.95
 
     # 初始化训练时候用的参数
     training = TrainingConfig()

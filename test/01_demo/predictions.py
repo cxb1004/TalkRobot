@@ -19,6 +19,10 @@ import tensorflow.compat.v1 as tf
 import json
 import csv
 
+from common.log import Log
+
+log = Log()
+
 # x = "it must be assumed that those who praised this film the greatest filmed opera ever didnt i read somewhere either dont care for opera dont care for wagner or dont care about anything except their desire to appear cultured either as a representation of wagners swan-song or as a movie this strikes me as an unmitigated disaster with a leaden reading of the score matched to a tricksy lugubrious realisation of the textits questionable that people with ideas as to what an opera or for that matter a play especially one by shakespeare is about should be allowed anywhere near a theatre or film studio; syberberg very fashionably but without the smallest justification from wagners text decided that parsifal is about bisexual integration so that the title character in the latter stages transmutes into a kind of beatnik babe though one who continues to sing high tenor -- few if any of the actors in the film are the singers and we get a double dose of armin jordan the conductor who is seen as the face but not heard as the voice of amfortas and also appears monstrously in double exposure as a kind of batonzilla or conductor who ate monsalvat during the playing of the good friday music -- in which by the way the transcendant loveliness of nature is represented by a scattering of shopworn and flaccid crocuses stuck in ill-laid turf an expedient which baffles me in the theatre we sometimes have to piece out such imperfections with our thoughts but i cant think why syberberg couldnt splice in for parsifal and gurnemanz mountain pasture as lush as was provided for julie andrews in sound of musicthe sound is hard to endure the high voices and the trumpets in particular possessing an aural glare that adds another sort of fatigue to our impatience with the uninspired conducting and paralytic unfolding of the ritual someone in another review mentioned the 1951 bayreuth recording and knappertsbusch though his tempi are often very slow had what jordan altogether lacks a sense of pulse a feeling for the ebb and flow of the music -- and after half a century the orchestral sound in that set in modern pressings is still superior to this film"
 sequenceLength = 200
 # 注：下面两个词典要保证和当前加载的模型对应的词典是一致的
@@ -40,7 +44,7 @@ with graph.as_default():
     sess = tf.Session(config=session_conf)
 
     with sess.as_default():
-        print("载入CheckPoint模型文件目录：{}".format(modelPath))
+        log.info("载入CheckPoint模型文件目录：{}".format(modelPath))
         checkpoint_file = tf.train.latest_checkpoint(modelPath)
         saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file))
         saver.restore(sess, checkpoint_file)
@@ -53,6 +57,7 @@ with graph.as_default():
         predictions = graph.get_tensor_by_name("output/predictions:0")
         # print("predictions对象：{}".format(predictions))
         # print("预测结果：{}".format(sess.run(predictions, feed_dict={inputX: [xIds], dropoutKeepProb: 1.0})))
+        log.info('模型载入成功, yeah')
 
         csv_file = os.path.join(basePath, 'data/preProcess/labeledTrain.csv')
         result_file = os.path.join(basePath, 'data/result.csv')
@@ -64,9 +69,9 @@ with graph.as_default():
 
                 writer.writerow(['content', 'expected', 'actual', 'isPass'])
 
-
                 for line in alllines:
-                    if not alllines.line_num==1:
+                    log.info('进度：{}/{}'.format(alllines.line_num, '25001'))
+                    if not alllines.line_num == 1:
                         x = line[0]
                         expected = line[2]
 
@@ -79,10 +84,10 @@ with graph.as_default():
                         pred = sess.run(predictions, feed_dict={inputX: [xIds], dropoutKeepProb: 1.0})[0]
                         actual = pred
 
-                        if actual==expected:
-                            isPass = True
+                        if str(actual) == str(expected):
+                            isPass = 1
                         else:
-                            isPass = False
+                            isPass = 0
 
                         writer.writerow([x, expected, actual, isPass])
 

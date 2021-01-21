@@ -93,4 +93,4 @@ with graph.as_default():
 
 # pred = [idx2label[item] for item in pred]
 # print("最终预测结果为{}".format(idx2label[pred]))
-print('运行完毕')
+log.info('运行完毕')

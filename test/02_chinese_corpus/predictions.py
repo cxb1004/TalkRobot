@@ -17,6 +17,10 @@ sys.path.append(basePath)
 
 import tensorflow.compat.v1 as tf
 import json
+import jieba
+import string
+from zhon.hanzi import punctuation
+from bs4 import BeautifulSoup
 
 # 全局变量
 # 定义标签和对应的ID，用于打标签
@@ -24,7 +28,33 @@ LABEL_ID_DICT = {'Auto': 0, 'Culture': 1, 'Economy': 2, 'Medicine': 3, 'Military
 # 反转标签的ID和标签值，用于查询
 ID_LABEL_DICT = {v: k for k, v in LABEL_ID_DICT.items()}
 
-x = "121334"
+punctuation_en = string.punctuation
+punctuation_cn = punctuation
+punctuation_str = punctuation_en + punctuation_cn
+
+
+def clearContent(str):
+    # log.debug('去除html标签前：' + lingString)
+    beau = BeautifulSoup(str, features="lxml")
+    # log.debug('去除html标签后：' + lingString)
+    # 去除HTML标
+    newSubject = beau.get_text()
+    # log.debug('去除标点符号前：' + newSubject)
+    global punctuation_en
+    for i in punctuation_str:
+        newSubject = newSubject.replace(i, '')
+    # log.debug('去除标点符号后：' + newSubject)
+    # log.debug('分词前：' + str(newSubject))
+    list = jieba.cut(newSubject)
+    newSubject = [word.lower() for word in list if word != ' ']
+    # log.debug('分词后：' + str(newSubject))
+    # # 这里相当于把分词之后的结果，用空格重新串联起来，这样后面处理只需要用空格进行分割即可
+    # 待优化：已经测试出对于输入数据，是否用空格连接，对结果是有影响的。那么在训练的时候也会有影响，这个作为优化项之一，后期研究
+    newSubject = "".join(newSubject)
+    return newSubject
+
+
+x = "外地乙肝病毒携带者拿到从事食品行业健康证的先例，让在北京的小廖感到欣慰，但同是乙肝病毒携带者的他前往相关机构申请办理该证却碰壁。11月16日上午，小廖一纸诉状递到东城法院"
 sequenceLength = 200
 # 注：下面两个词典要保证和当前加载的模型对应的词典是一致的
 file_word2idx_json = os.path.join(basePath, 'data/word2idx.json')
@@ -38,7 +68,8 @@ idx2label = {value: key for key, value in label2idx.items()}
 
 modelPath = os.path.join(basePath, 'data/model/')
 
-xIds = [word2idx.get(item, word2idx["UNK"]) for item in x.split(" ")]
+x = clearContent(x)
+xIds = [word2idx.get(item, word2idx["UNK"]) for item in jieba.lcut(x)]
 if len(xIds) >= sequenceLength:
     xIds = xIds[:sequenceLength]
 else:
@@ -70,5 +101,3 @@ with graph.as_default():
 print('输入文本为：{}'.format(x))
 print("最终预测结果为{}".format(idx2label[pred]))
 print(ID_LABEL_DICT)
-
-

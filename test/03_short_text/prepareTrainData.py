@@ -15,8 +15,10 @@ sys.path.append(basePath)
 
 import csv
 import re
-from bs4 import BeautifulSoup
 import jieba
+from bs4 import BeautifulSoup
+from zhon.hanzi import punctuation as punctuation
+import string
 
 from common.log import Log
 from common.utils import removeFileIfExists
@@ -24,8 +26,29 @@ from common.utils import replaceMutiSpace
 
 log = Log()
 
+# xuyao
+fileter_punctuation = (string.punctuation + punctuation) \
+    .replace('?', '') \
+    .replace('？', '')
 
-def getCutWordsWithClean(text):
+
+def segment(text):
+    """
+    去除标点符号，分词，用空格连接分词
+    :param text: 文本
+    :return: 去除html标签
+    """
+    # 对结果进行分词
+    new_text = text
+    word_list = jieba.cut(new_text)
+    # 去除分词里的空格
+    new_text = [word.lower() for word in word_list if word != ' ']
+    # 使用空格拼接分词
+    new_text = " ".join(new_text)
+    return new_text
+
+
+def cleanText(text):
     """
     对文本进行清洗
     1、去除html标签
@@ -53,10 +76,8 @@ def getCutWordsWithClean(text):
     new_text = new_text.replace('!', '！')
 
     # 去除所有中英文标点符号：对于短文本来说，标点符号对于语义来说没有太大影响，保留了问号
-    # global fileter_punctuation
-    # # for i in fileter_punctuation:
-    # #     new_text = text.replace(i, '')
-    # new_text = re.sub("[{}]+".format(punctuation), "", new_text)
+    global fileter_punctuation
+    new_text = re.sub("[{}]+".format(punctuation), " ", new_text)
     return new_text
 
 
@@ -66,7 +87,7 @@ word_limit_size = 50
 # source_data_folder = 'D:/prj_github/TalkRobot/test/02_chinese_corpus/data/corpus_6_4000'
 source_data_folder = '/python/TalkRobot/test/02_chinese_corpus/data/corpus_6_4000'
 
-labeled_train_data_csv = os.path.join(basePath, 'data/labeledData.csv')
+labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv')
 
 removeFileIfExists(labeled_train_data_csv)
 
@@ -124,7 +145,13 @@ with open(labeled_train_data_csv, 'w', encoding='utf-8', newline='') as csv_file
             # 去掉超过一个的空格
             content = replaceMutiSpace(content)
 
-            # 清洗
+            # 清洗数据
+            content = cleanText(content)
+
+            # 先获得4倍字数限制的问题，一方面减少jieba分词的性能问题，一方面又能保留较完整的主体词语
+            content = content[0:word_limit_size * 4]
+            content = segment(content)
+            content = ' '.join(content.split(' ')[0:word_limit_size])
 
             # 写入csv文件
             line_data = [content, label_id, label]

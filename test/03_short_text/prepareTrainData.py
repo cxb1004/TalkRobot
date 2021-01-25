@@ -1,9 +1,13 @@
 """
 中文短文本测试
 1、使用02_chinese_corpus/data/corpus_6_4000里的数据作为基础数据
-2、数据清洗过程中，把文本截断为20个字符
-3、
-
+2、读取所有文件数据，循环，并作一下操作：
+2.1 解析文件名，获得标签文本，根据静态字段，获得标签ID
+2.2 读取文件，拼接多行文本，去掉多余空格，
+2.3 对文本进行清洗（去掉HTML、去掉除问好以外的标点符号、去掉表情符等、去掉图片标签）
+2.4 对文本进行初步截断，并进行分词操作，对分词结果进行二次截断，保留50个字符长度
+2.5 最后形成的预料，是经过清洗以后的文本、经过分词以后，保留前50个分词结果
+3、把分词之后文本、标签ID、标签文本，写入csv文件
 """
 import os
 import sys
@@ -81,7 +85,7 @@ def cleanText(text):
     return new_text
 
 
-# 保留前几个分词结果，
+# 设置语料库每一句的最多词数
 word_limit_size = 50
 
 # source_data_folder = 'D:/prj_github/TalkRobot/test/02_chinese_corpus/data/corpus_6_4000'
@@ -142,6 +146,7 @@ with open(labeled_train_data_csv, 'w', encoding='utf-8', newline='') as csv_file
                 else:
                     # 空行就拼接一个空字符
                     content = content + ' '
+
             # 去掉超过一个的空格
             content = replaceMutiSpace(content)
 

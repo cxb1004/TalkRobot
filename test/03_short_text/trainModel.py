@@ -37,7 +37,7 @@ file_labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv'
 bin_word2Vec = os.path.join(basePath, 'data/word2Vec.bin')
 
 # 词向量维度参数设置
-vector_size = 200
+VECTOR_SIZE = 200
 
 
 def generateWord2Vector(_word2VecFile):
@@ -57,10 +57,38 @@ def generateWord2Vector(_word2VecFile):
     # word2Vec.bin文件如果已经存在，删除
     removeFileIfExists(_word2VecFile)
 
+    '''
+    gensim.models.Word2Vec参数含义：
+        sentences=None: 供训练的句子，可以使用简单的列表，但是对于大语料库，建议直接从磁盘/网络流迭代传输句
+        corpus_file=None: LineSentence格式的语料库文件路径， [["cat", "say", "meow"], ["dog", "say", "woof"]]
+        size=100: 词向量的维度，默认100，取值一般与我们的语料的大小相关，如果是不大的语料，比如小于100M的文本语料，则使用默认值一般就可以了。如果是超大的语料，建议增大维度
+        window=5: 词向量上下文最大距离,默认值为5,window越大，则和某一词较远的词也会产生上下文关系。如果是小语料则这个值可以设的更小。对于一般的语料这个值推荐在[5,10]之间
+        min_count=5: 需要计算词向量的最小词频。这个值可以去掉一些很生僻的低频词，默认是5。如果是小语料，可以调低这个值
+        sg=0: 默认是0。word2vec两个模型的选择，如果是0，则是CBOW模型，是1则是Skip-Gram模型
+        cbow_mean=1:  0: 使用上下文单词向量的总和; 1: 使用均值，适用于使用CBOW
+        hs=0: 默认是0。word2vec两个解法的选择，如果是0，则是Negative Sampling，是1的话并且负采样个数negative大于0， 则是Hierarchical Softmax。
+        negative=5: 使用Negative Sampling时负采样的个数，默认是5。推荐在[3,10]之间
+        ns_exponent=0.75:  负采样分布指数。1.0样本值与频率成正比，0.0样本所有单词均等，负值更多地采样低频词
+        iter=5: 随机梯度下降法中迭代的最大次数，默认是5。对于大语料，可以增大这个值
+        alpha=0.025: 在随机梯度下降法中迭代的初始步长。默认是0.025。
+        min_alpha=0.0001: 随着训练的进行，学习率线性下降到min_alpha。 对于大语料，需要对alpha, min_alpha,iter一起调参
+        hashfxn=<built-in function hash>:  哈希函数用于随机初始化权重，以提高训练的可重复性
+        null_word=0: 
+        trim_rule=None: 词汇修剪规则，指定某些词语是否应保留在词汇表中，修剪掉或使用默认值处理
+        sorted_vocab=1: 如果为1，则在分配单词索引前按降序对词汇表进行排序
+        workers=3:  训练模型时使用的线程数,worker参数只有在安装了Cython后才有效. 没有Cython的话, 只能使用单核
+        batch_words=10000: 每一个batch传递给线程单词的数量
+        max_final_vocab=None:自动选择匹配的min_count将词汇限制为目标词汇大小
+        max_vocab_size=None:  词汇构建期间RAM的限制; 如果有更多的独特单词，则修剪不常见的单词。 每1000万个类型的字需要大约1GB的RAM
+        seed=1:  随机数发生器种子
+        sample=0.001: 高频词随机下采样的配置阈值，范围是(0,1e-5)
+        compute_loss=False: 如果为True，则计算并存储可使用get_latest_training_loss()检索的损失值
+        callbacks=():  在训练中特定阶段执行回调序列
+    '''
     sentences = word2vec.LineSentence(_temp_file)
     # 【注意】这个size可以改动，但是需要和补齐的Embedding数据保持一致，否则Embedding会有{200,200,100,...}的维度不一致的情况，并在
     #  return vocab, np.array(wordEmbedding) 代码处抛出警告
-    vec_size = vector_size
+    vec_size = VECTOR_SIZE
     vec_window = 6
     vec_min_count = 2
     vec_sg = 1
@@ -90,7 +118,7 @@ def generateWord2VectorFile(_sourceFile, _word2VecFile):
         log.error("文件不存在，请确认:{}".format(_sourceFile))
         raise FileNotFoundError('文件不存在，请确认：{}'.format(_sourceFile))
 
-    # 生成同名的txt临时文件备查
+    # 生成同名的临时文件备查
     temp_file = _word2VecFile.replace('.bin', '.tmp')
     removeFileIfExists(temp_file)
     removeFileIfExists(_word2VecFile)
@@ -104,6 +132,7 @@ def generateWord2VectorFile(_sourceFile, _word2VecFile):
                 # 绕过第一行的标题
                 if not csvData.line_num == 1:
                     content = line[0]
+                    # 这里必须要加\n,否则生成的词向量内容就是一行文本的词向量，
                     tmpFile.write(content + '\n')
     log.info("临时语料库文件生成完毕：{}".format(temp_file))
 
@@ -755,8 +784,13 @@ class BiLSTMAttention(object):
 主程序
 
 文件说明
-【data/labeledData.csv】：读入文件，是打标签的数据，包括content/label_id/label，其中文本数据是需要经过清洗的
-【data/corpus.txt】：输出文件，用于生成词向量文件
+【data/labeledTrainData.csv】：读入文件，是打标签的数据，包括content/label_id/label，文本已经经过清洗和分词
+【data/word2Vec.bin】：输出文件，词向量文件，其中会生成word2Vec.tmp作为临时文件
+
+业务流程
+1、
+
+
 """
 
 # 生成词向量文件

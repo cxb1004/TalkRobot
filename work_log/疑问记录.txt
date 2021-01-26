@@ -1,0 +1,5 @@
+tensorflow 基础教程
+http://c.biancheng.net/view/1880.html
+
+1、标签和ID的映射关系，其中ID是否必须是int
+是否可以替换成其他的字符串，ID为字符串，是否会影响后续模型训练过程

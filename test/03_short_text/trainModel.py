@@ -796,7 +796,7 @@ class BiLSTMAttention(object):
 # 生成词向量文件
 generateWord2VectorFile(file_labeled_train_data_csv, bin_word2Vec)
 
-# 以上已经生成了labeledData.csv、labeledTrainData.csv、corpus.txt、word2Vec.bin
+# 以上已经生成了labeledTrainData.csv、word2Vec.bin、word2Vec.tmp
 config = Config()
 data = Dataset(config)
 data.dataGen()

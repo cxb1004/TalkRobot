@@ -161,7 +161,8 @@ class ModelConfig(object):
     """
     模型的配置
     """
-    embeddingSize = 200
+    # 使用常量，使得生成的词向量维度和训练中解析的词向量维度保持一致
+    embeddingSize = VECTOR_SIZE
     # ？？ LSTM结构的神经元个数
     hiddenSizes = [256, 128]
     # 过拟合参数
@@ -323,7 +324,8 @@ class Dataset(object):
          7、标签数据去重、字典化之后，存入文件label2idx.json
          8、词数据（统计词频的时候已经去重），字典化之后存入word2idx.json
          """
-        # reviews是二维集合，review是里面的一行，word是里面的一个元素
+        # 把语料库里面的所有的分词取出来，放到列表里面
+        # 整个语料库reviews是二维集合，review是里面的一行，word是里面的一个元素
         # 这行代码的功能，就把reviews的二维集合转化为一维  可以这么看代码  word ((for review in reviews) for word in review)
         # 最里面的括号，通过reviews，定义了代码块内的review； 外层括号就应用了review，并定义了word.
         allWords = [word for review in reviews for word in review]
@@ -331,14 +333,16 @@ class Dataset(object):
         # 去掉停用词, 其实就是word在allwords里面，但不再stopwordDict里
         subWords = [word for word in allWords if word not in self.stopWordDict]
 
-        # 内置函数，统计词频
+        # collections模块的类，统计词频,数据为列表形式[('a',3),('b',2)]
         wordCount = Counter(subWords)
 
         # 获得经过排序的词频数据
-        # key是比较的值，lambda是一个隐函数，是固定写法，X代表是wordCount.items()的元素，x[1]就是词频,reverse是降序
-        sortWordCount = sorted(wordCount.items(), key=lambda x: x[1], reverse=True)
+        # sorted(数据列, key = 对比值, reverse= True(降序) / Fase(升序))
+        # lambda内建函数：   lanmbda 输入参数,...: 输出参数（比较值）  item就是wordCount.items()的一个元素，item[1]指词频
+        sortWordCount = sorted(wordCount.items(), key=lambda item: item[1], reverse=True)
 
         # 【可优化】去除低频词  item[0]是词 / item[1]是词频   去除词频低于5的那些词，有利于提高特征区分度
+        # words就是按词频降序、去除低频词之后的语料库里面所有的词
         words = [item[0] for item in sortWordCount if item[1] >= 5]
 
         # 根据已经训练好的词向量，获得分析的词的向量
@@ -374,13 +378,13 @@ class Dataset(object):
 
     def _getWordEmbedding(self, words):
         """
-        1、读入已经生成的词向量文件
-        2、从已有的词向量里面获取当前词的向量数据（不存在就警告并跳过）
-        3、把当前词的词语（文字）和向量数据，存储到vocab / wordEmbdding，返回
-        【理解说明】
-        按照这段代码的逻辑，当前训练的词向量数据A的词，是要在另一个词向量数据B中存在
-        由于输入的words是较高词频（低频词已经去除），而读入的词向量是整体语料库的词向量
-        因此一般不会出现except的情况。
+        1、读取词向量文件
+        2、初始化词库vocab和词向量库wordEmbedding，前两个元素为PAD和UNK，分别用零向量和随机向量来映射
+        3、找到输入词的词向量，如果没有就警告（如果警告多了，就需要重新训练word2Vec.bin）
+        4、把词和词向量加入到vocab/wordEmbedding
+        5、返回vocab/wordEmbedding（wordEmbedding要转成数组，节省空间）
+        :param words: 从语料库中提取的词库，按词频降序排、并过滤词频小于5的数据
+        :return:
         """
         # 读取词向量文件，获取词向量数据
         wordVec = gensim.models.KeyedVectors.load_word2vec_format(bin_word2Vec, binary=True)
@@ -393,19 +397,23 @@ class Dataset(object):
         # PAD：使用无损方法采用0向量   UNK(unknown):一般采用随机向量
         vocab.append("PAD")
         vocab.append("UNK")
+        # 零向量
         wordEmbedding.append(np.zeros(self._embeddingSize))
+        # 随机向量
         wordEmbedding.append(np.random.randn(self._embeddingSize))
 
         for word in words:
             try:
                 # 从已经训练好的词向量数据中，获得这个单词的词向量
                 vector = wordVec.wv[word]
-                # 在语法库中添加词
+                # 往词库中添加词
                 vocab.append(word)
-                # 在词向量库中添加向量
+                # 往词向量库中添加向量
                 wordEmbedding.append(vector)
             except:
                 log.warn(word + "不存在于词向量中")
+
+        # 返回词库和词向量库，词向量库要转成数组（数组要求元素类型一致）
         # 如果wordEmbedding的数据维度不一致，这里会抛出警告，可以修改
         # vec_size = 200 来保持维度一致
         return vocab, np.array(wordEmbedding)

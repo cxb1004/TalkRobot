@@ -1,4 +1,48 @@
-
-
 1、标签和ID的映射关系，其中ID是否必须是int
 是否可以替换成其他的字符串，ID为字符串，是否会影响后续模型训练过程
+
+原始代码如下：
+def _genVocabulary(self, reviews, labels):
+        # set搭建无序不重复元素集，即去重
+        uniqueLabel = list(set(labels))
+        # 把标签数据转化为字典类型
+        # 本来这里是把标签数据转为ID（以数量为上限）
+        # label2idx = dict(zip(uniqueLabel, list(range(len(uniqueLabel)))))
+        label2idx = dict(zip(uniqueLabel, uniqueLabel))
+        self.labelList = list(range(len(uniqueLabel)))
+
+def _genTrainEvalData(self, reviewIds, labelIds, word2idx, rate):
+        trainReviews = np.asarray(reviews[:trainIndex], dtype="int64")
+        trainLabels = np.array(labelIds[:trainIndex], dtype="float32")
+
+        evalReviews = np.asarray(reviews[trainIndex:], dtype="int64")
+        evalLabels = np.array(labelIds[trainIndex:], dtype="float32")
+
+【已解决】test_char_label_issue.py
+
+
+========增量训练方案=============================
+1、label2idx.json: 增量训练模型的时候，本次label_id所对应的ID需要固定下来
+【问题代码】
+        # set搭建无序不重复元素集，即去重
+        uniqueLabel = list(set(labels))
+        # 把标签数据转化为字典类型
+        # 本来这里是把标签数据转为ID（以数量为上限）
+        label2idx = dict(zip(uniqueLabel, list(range(len(uniqueLabel)))))
+【解决方案】
+在第一次训练的时候，就把label对应的索引号固定下来，写入文件
+之后的每一次训练，如果有新增标签，就在该文件数据的基础上，在后面进行追加，并递增ID
+可以考虑直接在label2idx.json文件上增加实现这个功能
+
+2、word2idx.json：
+【问题代码】
+函数 _genVocabulary： wordCount = Counter(subWords)
+由于word2idx数据是要经过过滤和排序的，而排序就涉及到整体语料库，因此需要对上述语句进行处理
+即保存wordCount数据到文件，每次对增量文件进行词频统计之后，再和原有词频数据进行整合，用整合之后的词序生成
+vocab、wordEmbedding数据
+
+
+
+3、word2Vec.bin的整理训练方案
+
+4、模型训练checkpoint的

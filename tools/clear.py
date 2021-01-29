@@ -66,6 +66,7 @@ for root, dirs, files in os.walk(CUR_PATH):
             newFile = path + os.sep + 'backup_' + file
             os.rename(oldFile, newFile)
             transform(oldFile, newFile)
+            os.remove(newFile)
             print('文件转化完毕：{}'.format(oldFile))
 
 print('程序结束运行')

@@ -6,3 +6,39 @@
 【输出的结果，结合余弦相似度的判断，加上准确率的参数】
 
 
+【对于训练数据和测试数据的分派，目前是】
+问题代码：
+_genTrainEvalData函数：
+  # 训练数据的索引，24000条 × 0.8 = 19200条，即训练数据索引从0～19200
+        trainIndex = int(len(reviewIds) * rate)
+
+        # 训练数据和训练数据的标签ID
+        # 即语料库的词ID矩阵中获得0～19200条数据
+        trainReviews = np.asarray(reviews[:trainIndex], dtype="int64")
+        trainLabels = np.array(labelIds[:trainIndex], dtype="float32")
+
+        evalReviews = np.asarray(reviews[trainIndex:], dtype="int64")
+        evalLabels = np.array(labelIds[trainIndex:], dtype="float32")
+优惠方案：
+    如果数据是按照标签排列，20%的测试数据意味着最后1/5的数据是用于测试，而非训练
+    如果标签有6个，那么最后一个标签的语料数据是没有经过任何训练的
+
+
+【config.model.l2RegLambda参数对于损失函数的作用】
+问题代码：
+            outputW = tf.get_variable(
+                "outputW",
+                shape=[outputSize, config.numClasses],
+                # 【常见问题】会发生module 'tensorflow.compat.v1' has no attribute 'contrib'错误
+                # 解决办法是改成initializer=tf.glorot_uniform_initializer()
+                # initializer=tf.contrib.layers.xavier_initializer()
+                initializer=tf.glorot_uniform_initializer()
+            )
+
+            outputB = tf.Variable(tf.constant(0.1, shape=[config.numClasses]), name="outputB")
+            l2Loss += tf.nn.l2_loss(outputW)
+            l2Loss += tf.nn.l2_loss(outputB)
+            ...
+            self.loss = tf.reduce_mean(losses) + config.model.l2RegLambda * l2Loss
+
+如果l2RegLambda=0,那么l2Loss实际上是可以不用计算的, 那么前面对于l2Loss的计算，是否可以删除

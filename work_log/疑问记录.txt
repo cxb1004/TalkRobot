@@ -21,6 +21,7 @@ def _genTrainEvalData(self, reviewIds, labelIds, word2idx, rate):
 【已解决】test_char_label_issue.py
 
 
+
 ========增量训练方案=============================
 1、label2idx.json: 增量训练模型的时候，本次label_id所对应的ID需要固定下来
 【问题代码】
@@ -45,4 +46,7 @@ vocab、wordEmbedding数据
 
 3、word2Vec.bin的整理训练方案
 
-4、模型训练checkpoint的
+4、模型训练checkpoint的载入和继续训练
+
+5、训练的batch和step的数量，对于少数数据是否使用
+

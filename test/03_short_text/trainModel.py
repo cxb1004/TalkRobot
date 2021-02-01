@@ -62,7 +62,7 @@ def generateWord2Vector(_word2VecFile):
         sentences=None: 供训练的句子，可以使用简单的列表，但是对于大语料库，建议直接从磁盘/网络流迭代传输句
         corpus_file=None: LineSentence格式的语料库文件路径， [["cat", "say", "meow"], ["dog", "say", "woof"]]
         size=100: 词向量的维度，默认100，取值一般与我们的语料的大小相关，如果是不大的语料，比如小于100M的文本语料，则使用默认值一般就可以了。如果是超大的语料，建议增大维度
-        window=5: 词向量上下文最大距离,默认值为5,window越大，则和某一词较远的词也会产生上下文关系。如果是小语料则这个值可以设的更小。对于一般的语料这个值推荐在[5,10]之间
+        【可调】window=5: 词向量上下文最大距离,默认值为5,window越大，则和某一词较远的词也会产生上下文关系。如果是小语料则这个值可以设的更小。对于一般的语料这个值推荐在[5,10]之间
         min_count=5: 需要计算词向量的最小词频。这个值可以去掉一些很生僻的低频词，默认是5。如果是小语料，可以调低这个值
         sg=0: 默认是0。word2vec两个模型的选择，如果是0，则是CBOW模型，是1则是Skip-Gram模型
         cbow_mean=1:  0: 使用上下文单词向量的总和; 1: 使用均值，适用于使用CBOW
@@ -164,9 +164,9 @@ class ModelConfig(object):
     embeddingSize = 200
     # ？？ LSTM结构的神经元个数
     hiddenSizes = [256, 128]
-    # 过拟合参数
-    # 过拟合的意思就是在划分特征的时候，过度贴近于某几个特征点，从而导致向量机变得复杂
-    # https://blog.csdn.net/star_of_science/article/details/104245506
+    # 过拟合参数:
+    # 在不同的训练过程中，丢弃掉一部分的神经元，即让一部分神经元以一定的概率停止工作，这次训练过程中不更新权值，也不参加神经网络的计算。
+    # 但是它的权重得保留下来（只是暂时不更新而已），因为下次样本输入时它可能又得工作了
     dropoutKeepProb = 0.5
     # ？？
     l2RegLambda = 0.0
@@ -287,24 +287,30 @@ class Dataset(object):
         reviewIds = [[word2idx.get(item, word2idx["UNK"]) for item in review] for review in reviews]
         return reviewIds
 
-    def _genTrainEvalData(self, x, y, word2idx, rate):
+    def _genTrainEvalData(self, reviewIds, labelIds, word2idx, rate):
         """
         生成训练集和验证集
         """
         reviews = []
-        for review in x:
+        # reviewIds是整个语料库的所有句子、每一个词的id，是一个矩阵
+        # review是一个句子的词id，是一个向量
+        for review in reviewIds:
+            # 对词IDs进行长度截断，不足的补零向量（因为词ID是指已经在词库的词对应的ID，所有不存在未知词语，因此和UNK无光）
             if len(review) >= self._sequenceLength:
                 reviews.append(review[:self._sequenceLength])
             else:
                 reviews.append(review + [word2idx["PAD"]] * (self._sequenceLength - len(review)))
+        # 训练数据的索引，24000条 × 0.8 = 19200条，即训练数据索引从0～19200
+        trainIndex = int(len(reviewIds) * rate)
 
-        trainIndex = int(len(x) * rate)
-
+        # 训练数据和训练数据的标签ID
+        # 即语料库的词ID矩阵中获得0～19200条数据
+        # !!!这里是有问题的，待优化
         trainReviews = np.asarray(reviews[:trainIndex], dtype="int64")
-        trainLabels = np.array(y[:trainIndex], dtype="float32")
+        trainLabels = np.array(labelIds[:trainIndex], dtype="float32")
 
         evalReviews = np.asarray(reviews[trainIndex:], dtype="int64")
-        evalLabels = np.array(y[trainIndex:], dtype="float32")
+        evalLabels = np.array(labelIds[trainIndex:], dtype="float32")
 
         return trainReviews, trainLabels, evalReviews, evalLabels
 
@@ -434,12 +440,14 @@ class Dataset(object):
         # 从源数据文件中读取文本和标签数据
         reviews, labels = self._readData(self._dataSource)
 
-        # 初始化词汇-索引映射表和词向量矩阵，生成word2inx.json / label2idx.json
+        # 初始化词汇-索引映射表和词向量矩阵，生成<word2inx.json> <label2idx.json>
+        # word2idx是词库， label2idx是标签库
         word2idx, label2idx = self._genVocabulary(reviews, labels)
 
         # 将标签和句子id化
-        # labels所有标签数据[标签]，label2idx是[标签：id], labelIds就是每条文本记录的标签ID[id]
-        # reviews是[[词, 词, ...][]]，word2idx是[词:id]，reviewIds就是[[id,id,...],[]]
+        # labelIds是原始语料的标签ID， reivewIDs是原始语料每条预料的词ID
+        # labels所有标签数据[标签id]，label2idx是[标签id：id], labelIds就是每条文本记录的标签ID[id,id,id,id...]
+        # reviews是[[词, 词, ...][]]，word2idx是[词:词id]，reviewIds就是[[词id,词id,...],[词id,词id,...]...]
         labelIds = self._labelToIndex(labels, label2idx)
         reviewIds = self._wordToIndex(reviews, word2idx)
 
@@ -659,6 +667,10 @@ class BiLSTMAttention(object):
     def __init__(self, config, wordEmbedding):
 
         # 定义模型的输入
+        # tf.placeholder(dtype, shape, name)
+        # dtype: 数据的类型，通常是int16,float32,float64
+        # shape: 数据形状
+        # name:  给变量定的名字
         self.inputX = tf.placeholder(tf.int32, [None, config.sequenceLength], name="inputX")
         self.inputY = tf.placeholder(tf.int32, [None], name="inputY")
 
@@ -722,6 +734,7 @@ class BiLSTMAttention(object):
             )
 
             outputB = tf.Variable(tf.constant(0.1, shape=[config.numClasses]), name="outputB")
+            # 损失运算 用于测量两个张量之间或张量与0之间的误差。 这些可以用于测量回归任务中的网络的精确度，或用于正则化的目的（权重衰减）
             l2Loss += tf.nn.l2_loss(outputW)
             l2Loss += tf.nn.l2_loss(outputB)
             self.logits = tf.nn.xw_plus_b(output, outputW, outputB, name="logits")
@@ -732,13 +745,20 @@ class BiLSTMAttention(object):
                 self.predictions = tf.argmax(self.logits, axis=-1, name="predictions")
 
         # 计算二元交叉熵损失
+        # https: // blog.csdn.net / qq_35203425 / article / details / 79773459
+        # 在多分类问题中，我们经常使用交叉熵作为损失函数，tensorflow中有四种交叉熵函数：
+        # tf.nn.softmax_cross_entropy_with_logits()：softmax是对数字进行的归一化概率计算
+        # tf.nn.sparse_softmax_cross_entropy_with_logits():输入的label数据和softmax不同
+        # tf.nn.sigmoid_cross_entropy_with_logits():也叫Logistic函数，用于隐层神经元输出，取值范围为(0,1)，它可以将一个实数映射到(0,1)的区间
+        # tf.nn.weighted_cross_entropy_with_logits(): 计算具有权重的sigmoid交叉熵
         with tf.name_scope("loss"):
-
             if config.numClasses == 1:
+                # 如果是二分类，采用的是sigmoid交叉熵函数计算损失
                 losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                  labels=tf.cast(tf.reshape(self.inputY, [-1, 1]),
                                                                                 dtype=tf.float32))
             elif config.numClasses > 1:
+                # 如果是多分类，采用的是sparse softmax交叉熵函数计算损失
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.inputY)
 
             self.loss = tf.reduce_mean(losses) + config.model.l2RegLambda * l2Loss
@@ -775,6 +795,7 @@ class BiLSTMAttention(object):
         sentenceRepren = tf.tanh(sequeezeR)
 
         # 对Attention的输出可以做dropout处理
+        # keep_prob: float类型，每个元素被保留下来的概率，设置神经元被选中的概率,在初始化时keep_prob是一个占位符
         output = tf.nn.dropout(sentenceRepren, self.dropoutKeepProb)
 
         return output
@@ -818,7 +839,19 @@ labelList = data.labelList
 
 # 定义计算图
 with tf.Graph().as_default():
+    """
+    ConfigProto参数：
+        log_device_placement = True ： 可以获取到 operations 和 Tensor 被指派到哪个设备(几号CPU或几号GPU)上运行,
+            会在终端打印出各项操作是在哪个设备上运行的
+        allow_soft_placement=True：允许tf自动选择一个存在并且可用的设备来运行操作。
+            命令 "with tf.device('/cpu:0'):",允许手动设置操作运行的设备。如果手动设置的设备不存在或者不可用，就会导致tf程序等待或异常。
+    """
     session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    """
+    限制GPU资源使用：TF提供了两种控制GPU资源使用的方法:
+    gpu_options.allow_growth = True  ：在运行过程中动态申请显存
+    gpu_options.per_process_gpu_memory_fraction = 0.9  :  限制GPU的使用率
+    """
     session_conf.gpu_options.allow_growth = True
     session_conf.gpu_options.per_process_gpu_memory_fraction = 0.9  # 配置gpu占用率
 
@@ -826,8 +859,9 @@ with tf.Graph().as_default():
 
     # 定义会话
     with sess.as_default():
+        # 实例化BiLstmAttention模型
         lstm = BiLSTMAttention(config, wordEmbedding)
-
+        # ？？
         globalStep = tf.Variable(0, name="globalStep", trainable=False)
         # 定义优化函数，传入学习速率参数
         optimizer = tf.train.AdamOptimizer(config.training.learningRate)

@@ -9,6 +9,8 @@ tf.disable_v2_behavior()
 
 # 构造输入数据（我们用神经网络拟合x_data和y_data之间的关系）
 x_data = np.linspace(-1, 1, 300)[:, np.newaxis]  # -1到1等分300份形成的二维矩阵
+plt.plot(x_data)
+plt.show()
 noise = np.random.normal(0, 0.05, x_data.shape)  # 噪音，形状同x_data在0-0.05符合正态分布的小数
 y_data = np.square(x_data) - 0.5 + noise  # x_data平方，减0.05，再加噪音值
 plt.plot(x_data, y_data)

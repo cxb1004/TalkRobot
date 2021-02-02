@@ -42,3 +42,13 @@ _genTrainEvalData函数：
             self.loss = tf.reduce_mean(losses) + config.model.l2RegLambda * l2Loss
 
 如果l2RegLambda=0,那么l2Loss实际上是可以不用计算的, 那么前面对于l2Loss的计算，是否可以删除
+
+
+【训练之前，labels数据应该固定获取，而不是从语料库里面拿】
+问题代码：
+    函数_readData：labels = df["label_id"].tolist()
+说明：
+    标签数据本身不会太多，但是如果仅仅从语料库里面拿，那么语料库里面万一标签数据不全，就会产生问题
+
+
+【】

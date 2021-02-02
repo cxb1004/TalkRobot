@@ -263,6 +263,7 @@ class Dataset(object):
         # if self.config.numClasses == 1:
         #     labels = df["sentiment"].tolist()
         # elif self.config.numClasses > 1:
+        # 【待优化】labels数据不应该从语料库里面拿，
         labels = df["label_id"].tolist()
         review = df["content"].tolist()
         # 【已变更】原有功能是每一行去除前后空格之后，按空格划分，即对英文进行分词操作
@@ -676,7 +677,7 @@ class BiLSTMAttention(object):
 
         self.dropoutKeepProb = tf.placeholder(tf.float32, name="dropoutKeepProb")
 
-        # 定义l2损失
+        # 定义l2损失,这个参数将会参与基于交叉熵函数的loss值的计算
         l2Loss = tf.constant(0.0)
 
         # 词嵌入层

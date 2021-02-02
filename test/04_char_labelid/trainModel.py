@@ -26,13 +26,9 @@ log = Log()
 
 # 全局变量
 # 定义标签和对应的ID，用于打标签
-label_id_dict = {'Auto': 'ID_Auto',
-                 'Culture': 'ID_Culture',
-                 'Economy': 'ID_Economy',
-                 'Medicine': 'ID_Medicine',
-                 'Military': 'ID_Military',
-                 'Sports': 'ID_Sports'}
-id_label_dict = {v: k for k, v in label_id_dict.items()}
+LABEL_ID_DICT = {'Auto': 0, 'Culture': 1, 'Economy': 2, 'Medicine': 3, 'Military': 4, 'Sports': 5}
+# 反转标签的ID和标签值，用于查询
+ID_LABEL_DICT = {v: k for k, v in LABEL_ID_DICT.items()}
 
 # 读入数据：打过标签的数据文件 content / label_id / label
 file_labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv')
@@ -66,7 +62,7 @@ def generateWord2Vector(_word2VecFile):
         sentences=None: 供训练的句子，可以使用简单的列表，但是对于大语料库，建议直接从磁盘/网络流迭代传输句
         corpus_file=None: LineSentence格式的语料库文件路径， [["cat", "say", "meow"], ["dog", "say", "woof"]]
         size=100: 词向量的维度，默认100，取值一般与我们的语料的大小相关，如果是不大的语料，比如小于100M的文本语料，则使用默认值一般就可以了。如果是超大的语料，建议增大维度
-        window=5: 词向量上下文最大距离,默认值为5,window越大，则和某一词较远的词也会产生上下文关系。如果是小语料则这个值可以设的更小。对于一般的语料这个值推荐在[5,10]之间
+        【可调】window=5: 词向量上下文最大距离,默认值为5,window越大，则和某一词较远的词也会产生上下文关系。如果是小语料则这个值可以设的更小。对于一般的语料这个值推荐在[5,10]之间
         min_count=5: 需要计算词向量的最小词频。这个值可以去掉一些很生僻的低频词，默认是5。如果是小语料，可以调低这个值
         sg=0: 默认是0。word2vec两个模型的选择，如果是0，则是CBOW模型，是1则是Skip-Gram模型
         cbow_mean=1:  0: 使用上下文单词向量的总和; 1: 使用均值，适用于使用CBOW
@@ -154,10 +150,8 @@ class TrainingConfig(object):
     evaluateEvery = 100
     # 每运行100条，进行一次checkpoint
     checkpointEvery = 100
-    # 学习速率参数 （无需改动）
-    # 用于Adam优化器：Adam即Adaptive Moment Estimation（自适应矩估计），是一个寻找全局最优点的优化算法，引入了二次梯度校正
-    # 默认的参数就是0.001
-    # 根据其损失量学习自适应，损失量大则学习率大，进行修正的角度越大，损失量小，修正的幅度也小，学习率就小，但是不会超过自己所设定的学习率
+    # 学习速率参数 https://blog.csdn.net/sinat_29957455/article/details/78387716
+    # 默认的参数就是0.001，梯度*学习率就是模型更新不步长，步长大了影响模型参数的最终精准度；步长小了影响模型训练的时间和效率。
     learningRate = 0.001
 
 
@@ -168,9 +162,9 @@ class ModelConfig(object):
     embeddingSize = 200
     # ？？ LSTM结构的神经元个数
     hiddenSizes = [256, 128]
-    # 过拟合参数
-    # 过拟合的意思就是在划分特征的时候，过度贴近于某几个特征点，从而导致向量机变得复杂
-    # https://blog.csdn.net/star_of_science/article/details/104245506
+    # 过拟合参数:
+    # 在不同的训练过程中，丢弃掉一部分的神经元，即让一部分神经元以一定的概率停止工作，这次训练过程中不更新权值，也不参加神经网络的计算。
+    # 但是它的权重得保留下来（只是暂时不更新而已），因为下次样本输入时它可能又得工作了
     dropoutKeepProb = 0.5
     # ？？
     l2RegLambda = 0.0
@@ -196,7 +190,7 @@ class Config(object):
     # 【待重构】
     # 这里我们用到的是多分类，不是二分类，参考csv文件中有10个分类，因此设置为10
     # numClasses = 11
-    numClasses = len(label_id_dict)
+    numClasses = len(LABEL_ID_DICT)
 
     # 训练集的比例，即80%用于训练，20%用于测试
     rate = 0.95
@@ -267,6 +261,7 @@ class Dataset(object):
         # if self.config.numClasses == 1:
         #     labels = df["sentiment"].tolist()
         # elif self.config.numClasses > 1:
+        # 【待优化】labels数据不应该从语料库里面拿，
         labels = df["label_id"].tolist()
         review = df["content"].tolist()
         # 【已变更】原有功能是每一行去除前后空格之后，按空格划分，即对英文进行分词操作
@@ -291,24 +286,30 @@ class Dataset(object):
         reviewIds = [[word2idx.get(item, word2idx["UNK"]) for item in review] for review in reviews]
         return reviewIds
 
-    def _genTrainEvalData(self, x, y, word2idx, rate):
+    def _genTrainEvalData(self, reviewIds, labelIds, word2idx, rate):
         """
         生成训练集和验证集
         """
         reviews = []
-        for review in x:
+        # reviewIds是整个语料库的所有句子、每一个词的id，是一个矩阵
+        # review是一个句子的词id，是一个向量
+        for review in reviewIds:
+            # 对词IDs进行长度截断，不足的补零向量（因为词ID是指已经在词库的词对应的ID，所有不存在未知词语，因此和UNK无光）
             if len(review) >= self._sequenceLength:
                 reviews.append(review[:self._sequenceLength])
             else:
                 reviews.append(review + [word2idx["PAD"]] * (self._sequenceLength - len(review)))
+        # 训练数据的索引，24000条 × 0.8 = 19200条，即训练数据索引从0～19200
+        trainIndex = int(len(reviewIds) * rate)
 
-        trainIndex = int(len(x) * rate)
-
+        # 训练数据和训练数据的标签ID
+        # 即语料库的词ID矩阵中获得0～19200条数据
+        # !!!这里是有问题的，待优化
         trainReviews = np.asarray(reviews[:trainIndex], dtype="int64")
-        trainLabels = np.array(y[:trainIndex], dtype="float32")
+        trainLabels = np.array(labelIds[:trainIndex], dtype="float32")
 
         evalReviews = np.asarray(reviews[trainIndex:], dtype="int64")
-        evalLabels = np.array(y[trainIndex:], dtype="float32")
+        evalLabels = np.array(labelIds[trainIndex:], dtype="float32")
 
         return trainReviews, trainLabels, evalReviews, evalLabels
 
@@ -358,8 +359,8 @@ class Dataset(object):
         uniqueLabel = list(set(labels))
         # 把标签数据转化为字典类型
         # 本来这里是把标签数据转为ID（以数量为上限）
-        label2idx = dict(zip(uniqueLabel, list(range(len(uniqueLabel)))))
-        # label2idx = dict(zip(uniqueLabel, uniqueLabel))
+        # label2idx = dict(zip(uniqueLabel, list(range(len(uniqueLabel)))))
+        label2idx = dict(zip(uniqueLabel, uniqueLabel))
         self.labelList = list(range(len(uniqueLabel)))
 
         f_word2idx_json = os.path.join(basePath, 'data/word2idx.json')
@@ -438,12 +439,14 @@ class Dataset(object):
         # 从源数据文件中读取文本和标签数据
         reviews, labels = self._readData(self._dataSource)
 
-        # 初始化词汇-索引映射表和词向量矩阵，生成word2inx.json / label2idx.json
+        # 初始化词汇-索引映射表和词向量矩阵，生成<word2inx.json> <label2idx.json>
+        # word2idx是词库， label2idx是标签库
         word2idx, label2idx = self._genVocabulary(reviews, labels)
 
         # 将标签和句子id化
-        # labels所有标签数据[标签]，label2idx是[标签：id], labelIds就是每条文本记录的标签ID[id]
-        # reviews是[[词, 词, ...][]]，word2idx是[词:id]，reviewIds就是[[id,id,...],[]]
+        # labelIds是原始语料的标签ID， reivewIDs是原始语料每条预料的词ID
+        # labels所有标签数据[标签id]，label2idx是[标签id：id], labelIds就是每条文本记录的标签ID[id,id,id,id...]
+        # reviews是[[词, 词, ...][]]，word2idx是[词:词id]，reviewIds就是[[词id,词id,...],[词id,词id,...]...]
         labelIds = self._labelToIndex(labels, label2idx)
         reviewIds = self._wordToIndex(reviews, word2idx)
 
@@ -663,12 +666,16 @@ class BiLSTMAttention(object):
     def __init__(self, config, wordEmbedding):
 
         # 定义模型的输入
+        # tf.placeholder(dtype, shape, name)
+        # dtype: 数据的类型，通常是int16,float32,float64
+        # shape: 数据形状
+        # name:  给变量定的名字
         self.inputX = tf.placeholder(tf.int32, [None, config.sequenceLength], name="inputX")
         self.inputY = tf.placeholder(tf.int32, [None], name="inputY")
 
         self.dropoutKeepProb = tf.placeholder(tf.float32, name="dropoutKeepProb")
 
-        # 定义l2损失
+        # 定义l2损失,这个参数将会参与基于交叉熵函数的loss值的计算
         l2Loss = tf.constant(0.0)
 
         # 词嵌入层
@@ -726,6 +733,7 @@ class BiLSTMAttention(object):
             )
 
             outputB = tf.Variable(tf.constant(0.1, shape=[config.numClasses]), name="outputB")
+            # 损失运算 用于测量两个张量之间或张量与0之间的误差。 这些可以用于测量回归任务中的网络的精确度，或用于正则化的目的（权重衰减）
             l2Loss += tf.nn.l2_loss(outputW)
             l2Loss += tf.nn.l2_loss(outputB)
             self.logits = tf.nn.xw_plus_b(output, outputW, outputB, name="logits")
@@ -736,13 +744,20 @@ class BiLSTMAttention(object):
                 self.predictions = tf.argmax(self.logits, axis=-1, name="predictions")
 
         # 计算二元交叉熵损失
+        # https: // blog.csdn.net / qq_35203425 / article / details / 79773459
+        # 在多分类问题中，我们经常使用交叉熵作为损失函数，tensorflow中有四种交叉熵函数：
+        # tf.nn.softmax_cross_entropy_with_logits()：softmax是对数字进行的归一化概率计算
+        # tf.nn.sparse_softmax_cross_entropy_with_logits():输入的label数据和softmax不同
+        # tf.nn.sigmoid_cross_entropy_with_logits():也叫Logistic函数，用于隐层神经元输出，取值范围为(0,1)，它可以将一个实数映射到(0,1)的区间
+        # tf.nn.weighted_cross_entropy_with_logits(): 计算具有权重的sigmoid交叉熵
         with tf.name_scope("loss"):
-
             if config.numClasses == 1:
+                # 如果是二分类，采用的是sigmoid交叉熵函数计算损失
                 losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                  labels=tf.cast(tf.reshape(self.inputY, [-1, 1]),
                                                                                 dtype=tf.float32))
             elif config.numClasses > 1:
+                # 如果是多分类，采用的是sparse softmax交叉熵函数计算损失
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.inputY)
 
             self.loss = tf.reduce_mean(losses) + config.model.l2RegLambda * l2Loss
@@ -779,6 +794,7 @@ class BiLSTMAttention(object):
         sentenceRepren = tf.tanh(sequeezeR)
 
         # 对Attention的输出可以做dropout处理
+        # keep_prob: float类型，每个元素被保留下来的概率，设置神经元被选中的概率,在初始化时keep_prob是一个占位符
         output = tf.nn.dropout(sentenceRepren, self.dropoutKeepProb)
 
         return output
@@ -820,40 +836,66 @@ evalLabels = data.evalLabels
 wordEmbedding = data.wordEmbedding
 labelList = data.labelList
 
-# 定义计算图
+# 打开计算图
 with tf.Graph().as_default():
+    """
+    ConfigProto参数：
+        log_device_placement = True ： 可以获取到 operations 和 Tensor 被指派到哪个设备(几号CPU或几号GPU)上运行,
+            会在终端打印出各项操作是在哪个设备上运行的
+        allow_soft_placement=True：允许tf自动选择一个存在并且可用的设备来运行操作。
+            命令 "with tf.device('/cpu:0'):",允许手动设置操作运行的设备。如果手动设置的设备不存在或者不可用，就会导致tf程序等待或异常。
+    """
     session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    """
+    限制GPU资源使用：TF提供了两种控制GPU资源使用的方法:
+    gpu_options.allow_growth = True  ：在运行过程中动态申请显存
+    gpu_options.per_process_gpu_memory_fraction = 0.9  :  限制GPU的使用率
+    """
     session_conf.gpu_options.allow_growth = True
     session_conf.gpu_options.per_process_gpu_memory_fraction = 0.9  # 配置gpu占用率
 
     sess = tf.Session(config=session_conf)
 
-    # 定义会话
+    # 打开会话
     with sess.as_default():
+        # 定义一个模型算法，算法使用config对象为参数、并读入wordEmbedding作为数据
         lstm = BiLSTMAttention(config, wordEmbedding)
 
+        # 以下是定义模型训练时候用的参数优化器：初始化优化计次、定义优化算法、生成优化器
+        # 1、初始化优化计次：用以计算优化次数，从0开始，由apply_gradients在模型训练过程中，优化模型参数后+1
+        # trainable一定要设置成False，这样梯度传播时就不会修改global_step
+        # https://blog.csdn.net/shuibuzhaodeshiren/article/details/84669421
         globalStep = tf.Variable(0, name="globalStep", trainable=False)
-        # 定义优化函数，传入学习速率参数
+        # 2、定义优化算法：Adam优化算法，一个寻找全局最优点的优化算法，引入了二次方梯度校正
+        # 除了利用反向传播算法对权重和偏置项进行修正外，也在运行中不断修正学习率。
+        # 根据其损失量学习自适应，损失量大则学习率大，进行修正的角度越大，损失量小，修正的幅度也小，学习率就小，
+        # 但是不会超过自己所设定的最低学习率
         optimizer = tf.train.AdamOptimizer(config.training.learningRate)
-        # 计算梯度,得到梯度和变量
+        # 根据模型的损失率数据，计算梯度,得到梯度和变量
         gradsAndVars = optimizer.compute_gradients(lstm.loss)
-        # 将梯度应用到变量下，生成训练器
+        # 将梯度应用到变量下，生成训练优化器
         trainOp = optimizer.apply_gradients(gradsAndVars, global_step=globalStep)
 
-        # 用summary绘制tensorBoard
+        '''
+        用summary绘制tensorBoard，即把模型优化过程数据用图形表现出来
+        这里只写入了loss的数据
+        '''
         gradSummaries = []
         for g, v in gradsAndVars:
             if g is not None:
+                #  用来显示直方图信息，一般用来显示训练过程中变量的分布情况
                 tf.summary.histogram("{}/grad/hist".format(v.name), g)
+                # 用来显示标量信息，一般在画loss,accuary时会用到这个函数
                 tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
-
         # outDir = os.path.abspath(os.path.join(os.path.curdir, "summarys"))
         outDir = os.path.join(basePath, 'data/model/summarys')
-        log.debug("Writing to {}\n".format(outDir))
-
+        log.debug("Summary data is writing to： {}".format(outDir))
+        # 把lstm模型的loss的数据，写入到lossSummary
         lossSummary = tf.summary.scalar("loss", lstm.loss)
+
         summaryOp = tf.summary.merge_all()
 
+        # 把train
         trainSummaryDir = os.path.join(outDir, "train")
         trainSummaryWriter = tf.summary.FileWriter(trainSummaryDir, sess.graph)
 

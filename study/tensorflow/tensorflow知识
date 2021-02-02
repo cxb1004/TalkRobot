@@ -1,0 +1,25 @@
+==========tensorflow===================================
+
+
+【tf.placeholder】
+定义模型的输入
+tf.placeholder(dtype, shape, name)
+dtype: 数据的类型，通常是int16,float32,float64
+shape: 数据形状
+name:  给变量定的名字
+
+【tf.name_scope】
+用于定义Python op的上下文管理器
+tf.name_scope(
+    name
+)
+
+TF框架本身设计了比较完善的变量管理机制。变量作用域能够更好的管理模块的变量（特别是将来会重用到的变量）。
+
+tf常用的变量作用域有两种：tf.name_scope和tf.variable_scope，
+tf本身的变量管理有如下接口：tf.get_variables 和 tf.Variable
+
+
+
+==========tensorflow===================================
+

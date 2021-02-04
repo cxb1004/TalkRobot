@@ -104,7 +104,7 @@ def dumpTagInfo(tag_desc_answer):
         writer.writerow(['tag_id', 'std_question', 'answer'])
         for tagKey in tag_desc_answer.keys():
             tagInfo = tag_desc_answer.get(tagKey)
-            writer.writerow([tagKey, tagInfo[0], tagInfo[1]])
+            writer.writerow(['tagid_'+tagKey, tagInfo[0], tagInfo[1]])
 
 
 def dumpTagQuestions(tag_question):
@@ -120,11 +120,11 @@ def dumpTagQuestions(tag_question):
 def dumpLabeldedTrainData(tag_question):
     with open(labeled_train_data_csv, 'w', encoding='utf-8', newline='') as csvFile:
         writer = csv.writer(csvFile)
-        writer.writerow(['content', 'label'])
+        writer.writerow(['content', 'label_id','label'])
         for tagKey in tag_question.keys():
             questionList = tag_question.get(tagKey)
             for question in questionList:
-                writer.writerow([question, tagKey])
+                writer.writerow([question, 'tagid_'+tagKey, tagKey])
 
 
 with open(source_file, 'r+', encoding='utf-8') as f:

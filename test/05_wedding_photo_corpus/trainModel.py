@@ -26,19 +26,23 @@ log = Log()
 
 
 # 全局变量
-# 定义标签和对应的ID，用于打标签
+# 查询标签
+# 标签和数字id的对应转换，另一块代码在_genVocabulary中，重构的时候选择一个方案，然后两个地方选择一处修改
 def getTagDictory():
     tagFile = os.path.join(basePath, 'data/tag_info.csv')
     labelinfo = {}
+    # idx = 0
     with open(tagFile, 'r', encoding='utf-8') as csvFile:
         reader = csv.reader(csvFile)
         for row in reader:
             if reader.line_num != 1:
-                labelinfo.update({row[0]: 'tagid_' + row[0]})
+                labelinfo.update({row[0]: row[0]})
+                # idx = idx + 1
     log.info('读入标签{}个'.format(labelinfo.__len__()))
     return labelinfo
 
 
+# 定义标签和对应的ID，用于打标签
 LABEL_ID_DICT = getTagDictory()
 # 反转标签的ID和标签值，用于查询
 ID_LABEL_DICT = {v: k for k, v in LABEL_ID_DICT.items()}
@@ -281,7 +285,7 @@ class Dataset(object):
         # 而中文的分词需要特殊处理，所以这里要前置处理，在生成csv文件的时候，就把分词结果写入到content里面
         # 因此在生成corpus.txt文件的时候，同时生成labeledTrainData.csv文件，里面content是经过分词处理的
         # 直接返回review即可
-        reviews = [line.strip().split() for line in review]
+        reviews = [str(line).strip().split() for line in review]
 
         return reviews, labels
 
@@ -372,8 +376,8 @@ class Dataset(object):
         uniqueLabel = list(set(labels))
         # 把标签数据转化为字典类型
         # 本来这里是把标签数据转为ID（以数量为上限）
-        # label2idx = dict(zip(uniqueLabel, list(range(len(uniqueLabel)))))
-        label2idx = dict(zip(uniqueLabel, uniqueLabel))
+        label2idx = dict(zip(uniqueLabel, list(range(len(uniqueLabel)))))
+        # label2idx = dict(zip(uniqueLabel, uniqueLabel))
         self.labelList = list(range(len(uniqueLabel)))
 
         f_word2idx_json = os.path.join(basePath, 'data/word2idx.json')

@@ -44,7 +44,7 @@ import os
 import sys
 
 from bs4 import BeautifulSoup
-
+import jieba
 # 当前目录
 basePath = os.path.abspath(os.path.dirname(__file__))
 # 设置当前目录为执行运行目录
@@ -59,6 +59,21 @@ tag_info_file = os.path.join(basePath, 'data/tag_info.csv')
 tag_question_file = os.path.join(basePath, 'data/tag_question.csv')
 labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv')
 
+
+def segment(text):
+    """
+    去除标点符号，分词，用空格连接分词
+    :param text: 文本
+    :return: 去除html标签
+    """
+    # 对结果进行分词
+    new_text = text
+    word_list = jieba.cut(new_text)
+    # 去除分词里的空格
+    new_text = [word.lower() for word in word_list if word != ' ']
+    # 使用空格拼接分词
+    new_text = " ".join(new_text)
+    return new_text
 
 def dumpTagInfo(tag_desc_answer):
     with open(tag_info_file, 'w', encoding='utf-8', newline='') as csvFile:
@@ -86,6 +101,8 @@ def dumpLabeldedTrainData(tag_question):
         for tagKey in tag_question.keys():
             questionList = tag_question.get(tagKey)
             for question in questionList:
+                question = clearText(question)
+                question = segment(question)
                 writer.writerow([question, tagKey, tagKey])
 
 

@@ -60,44 +60,6 @@ tag_question_file = os.path.join(basePath, 'data/tag_question.csv')
 labeled_train_data_csv = os.path.join(basePath, 'data/labeledTrainData.csv')
 
 
-def add_std_question_under_tag(tag_question, tag, q):
-    """
-    把问题加入到标签下的问题列表中
-    1、先检查tag_question是否存在标签，不存在就做插入操作
-    2、如果存在，去除问题列表对象，查看q是否已经存在于列表，存在则抛出警告，不存在就插入操作
-    :param tag_question:标签以及标签下所有问题的集合{标签：问题列表}
-    :param tag:标签
-    :param q:需要新增的问题
-    :return:
-    """
-    if tag_question.get(tag) is not None:
-        questions = tag_question[tag]
-        questions.append(q)
-        tag_question[tag] = questions
-    else:
-        questions = list()
-        questions.append(q)
-        tag_question[tag] = questions
-
-
-def add_sim_question_under_tag(tag_question, tag, q):
-    """
-    把问题加入到标签下的问题列表中
-    1、先检查tag_question是否存在标签，不存在就做插入操作
-    2、如果存在，去除问题列表对象，查看q是否已经存在于列表，存在则抛出警告，不存在就插入操作
-    :param tag_question:标签以及标签下所有问题的集合{标签：问题列表}
-    :param tag:标签
-    :param q:需要新增的问题
-    :return:
-    """
-    if tag_question.get(tag) is not None:
-        questions = tag_question[tag]
-        questions.append(q)
-        tag_question[tag] = questions
-    else:
-        log.warn('warning 相似问题的标签{}不存在！'.format(tag))
-
-
 def dumpTagInfo(tag_desc_answer):
     with open(tag_info_file, 'w', encoding='utf-8', newline='') as csvFile:
         writer = csv.writer(csvFile)
@@ -120,77 +82,125 @@ def dumpTagQuestions(tag_question):
 def dumpLabeldedTrainData(tag_question):
     with open(labeled_train_data_csv, 'w', encoding='utf-8', newline='') as csvFile:
         writer = csv.writer(csvFile)
-        writer.writerow(['content', 'label_id','label'])
+        writer.writerow(['content', 'label_id', 'label'])
         for tagKey in tag_question.keys():
             questionList = tag_question.get(tagKey)
             for question in questionList:
                 writer.writerow([question, tagKey, tagKey])
 
 
+def clearText(text):
+    # 去掉HTML标签
+    beau = BeautifulSoup(text, "html.parser")
+    # 去除HTML标
+    new_text = beau.get_text()
+
+    new_text = str(new_text).replace('\n', '')
+    return new_text
+
+
+def add_std_question_under_tag(tag_desc_answer, tag_question, data):
+    # 新增标签信息，如果存在就覆盖
+    tag = data['knowledge_id']
+    question = clearText(data['question'])
+    answer = clearText(data['answer'])
+    tag_desc_answer[tag] = [question, answer]
+
+    # 新增标准问题
+    tag_question[tag] = [question]
+
+
+def add_sim_question_under_tag(tag_desc_answer, tag_question, data):
+    tag = data['parent_id']
+    question = data['question']
+    if tag_desc_answer.get(tag) is None:
+        log.warn('标签[{}]缺失标准问题，补一条空问题！'.format(tag))
+        tag_desc_answer[tag] = ['空问题', '空回答'+tag]
+        # tag_question[tag] = ['空问题']
+
+    if tag_question.get(tag) is not None:
+        qList = tag_question.get(tag)
+        qList.append(question)
+        tag_question[tag] = qList
+    else:
+        tag_question[tag] = [question]
+
+
 with open(source_file, 'r+', encoding='utf-8') as f:
     # 载入json内容
     jsonContent = json.load(f)
     # {}部分是字典类型 []部分是列表类型
-    log.info(type(jsonContent))
-    log.info(type(jsonContent['data']))
+    # log.info(type(jsonContent))
+    # log.info(type(jsonContent['data']))
     # 获得data节点的内容
-    all_question = jsonContent['data']
+    all_data = jsonContent['data']
+    cnt_all_data = len(all_data)
 
     # {tag: [desc, answer] , ...}
     tag_desc_answer = dict()
     # {tag: [question,question] , ...}
     tag_question = dict()
-    cnt_std_questions = 0
-    cnt_sim_questions = 0
-    for question in all_question:
-        parent_id = question['parent_id']
+    for data in all_data:
+        parent_id = data['parent_id']
         # 是否为标准问题
         is_std_question = 0
         if parent_id == '0':
             # parent_id=='0'没有上级问题，即为标准问题
             is_std_question = 1
-            cnt_std_questions = cnt_std_questions + 1
         elif parent_id != '0':
             # parent_id<>'0'存在上级问题，即为相似问题
             is_std_question = 0
-            cnt_sim_questions = cnt_sim_questions + 1
+
+        # 问题文本
+        q = data['question']
 
         if is_std_question == 1:
-            # 如果是标准问题
-            tag = question['knowledge_id']
-            q = question['question']
-            # ?? answer需要去标签化
-            answer = question['answer']
-            # 去除HTML标
-            beau = BeautifulSoup(answer, "html.parser")
-            answer = beau.get_text()
-            # 去除空格
-            answer = str(answer).replace('\n', '')
-
-            if tag_desc_answer.get(tag) is not None:
-                log.warn('重复标签：  \"knowledge_id\": \"{}\"'.format(tag))
+            if tag_desc_answer.get(data['knowledge_id']) is not None:
+                q = tag_desc_answer.get(data['knowledge_id'])[0]
+                if q == '空问题':
+                    tag_desc_answer[data['knowledge_id']] = [data['question'], clearText(data['answer'])]
+                    log.warn('标签[{}]问题修复！'.format(data['knowledge_id']))
+                else:
+                    log.warn('重复标签：  \"knowledge_id\": \"{}\"'.format(data['knowledge_id']))
             else:
-                tag_desc_answer[tag] = [q, answer]
-
-                add_std_question_under_tag(tag_question, tag, q)
+                add_std_question_under_tag(tag_desc_answer, tag_question, data)
         else:
-            # 如果是相似问题
-            tag = question['parent_id']
-            q = question['question']
-            add_sim_question_under_tag(tag_question, tag, q)
-
-    log.info('统计数据：')
-    cnt_all = 0
-    for tag in tag_desc_answer.keys():
-        q_a = tag_desc_answer.get(tag)
-        q_list = tag_question.get(tag)
-        log.info(' - 标签[{}]有问题{}个: {}  --  {}'.format(tag, len(q_list), q_a[0], q_a[1]))
-        cnt_all = cnt_all + len(q_list)
-
-    log.info("一共有{}个标签".format(tag_desc_answer.__len__()))
-    log.info("一共有{}个标准问题".format(cnt_std_questions))
-    log.info("一共有{}个相似问题".format(cnt_all))
+            add_sim_question_under_tag(tag_desc_answer, tag_question, data)
 
     dumpTagInfo(tag_desc_answer)
     dumpTagQuestions(tag_question)
     dumpLabeldedTrainData(tag_question)
+
+cnt_tag = 0
+with open(tag_info_file, 'r', encoding='utf-8') as csvFile:
+    cnt_tag = len(csvFile.readlines())
+
+log.info('===字数分布=================')
+
+dist_wordLen = {}
+all_len = 0
+max_len = 0
+cnt_questions = 0
+with open(tag_question_file, 'r', encoding='utf-8') as csvFile:
+    all_lines = csv.reader(csvFile)
+    for lineData in all_lines:
+        cnt_questions = cnt_questions + 1
+        l = len(lineData[1])
+        if l > max_len: max_len = l
+        all_len = all_len + l
+        if dist_wordLen.get(l) is None:
+            dist_wordLen[l] = 1
+        else:
+            cnt = dist_wordLen.get(l) + 1
+            dist_wordLen[l] = cnt
+log.info('{}\t{}'.format('字数', '条数'))
+for i in dist_wordLen.keys():
+    log.info('{}\t{}'.format(i, dist_wordLen[i]))
+log.info('=====================')
+
+log.info('统计数据：')
+log.info('一共有{}条数据'.format(cnt_all_data))
+log.info('一共导入{}个标签'.format(cnt_tag))
+log.info('一共导入{}个问题'.format(cnt_questions))
+log.info('语料最长:{}字节'.format(max_len))
+log.info('语料平均长:{}字节'.format(all_len / cnt_questions))

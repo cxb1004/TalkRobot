@@ -191,7 +191,7 @@ class Config(object):
     """
     主要配置参数，包括运行
     """
-    sequenceLength = 25  # 取了所有序列长度的均值
+    sequenceLength = 13  # 取了所有序列长度的均值
     batchSize = 128
 
     # 【待重构】

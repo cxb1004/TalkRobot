@@ -44,7 +44,7 @@ def getTagDictory():
 label_id_dict = getTagDictory()
 id_label_dict = {v: k for k, v in label_id_dict.items()}
 
-sequenceLength = 25
+sequenceLength = 13
 # 注：下面两个词典要保证和当前加载的模型对应的词典是一致的
 file_word2idx_json = os.path.join(basePath, 'data/word2idx.json')
 with open(file_word2idx_json, "r", encoding="utf-8") as f:

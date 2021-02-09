@@ -8,6 +8,8 @@ import sys
 import pandas
 import openpyxl
 
+from pandas import DataFrame
+
 # 当前目录
 basePath = os.path.abspath(os.path.dirname(__file__))
 # 设置当前目录为执行运行目录
@@ -120,11 +122,12 @@ def clusterToDataFrame(unknown_cluster_data):
     :param unknown_cluster_data:聚类数据
     :return: DataFrame数据
     """
-    a = [1, 2, 3, 4]
-    b = [5, 6, 7, 8]
-    c = [a, b]
-    listb = [[r[i] for r in c] for i in range(len(a))]
-    df = pandas.DataFrame(data=listb)
+    df_data = []
+    for tagId in unknown_cluster_data.keys():
+        for questions in unknown_cluster_data.get(tagId):
+            for question in questions:
+                df_data.append([tagId, question])
+    df = pandas.DataFrame(data=df_data)
     return df
 
 
